@@ -2071,6 +2071,326 @@ function _initEmbers() {
   draw();
 }
 
+// ── 3D Robotic Cyber-Snake Animation — Fullscreen High-Visibility Dark Cyber ──
+function _initRoboticSnake3D() {
+  if (document.getElementById('3d-robotic-snake-canvas')) return;
+  const canvas = document.createElement('canvas');
+  canvas.id = '3d-robotic-snake-canvas';
+  canvas.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:0;opacity:0.9;';
+  canvas.setAttribute('aria-hidden', 'true');
+  document.body.prepend(canvas);
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let W, H;
+
+  let mouseX = 0, mouseY = 0;
+  let targetRotX = 0, targetRotY = 0;
+  let currRotX = 0, currRotY = 0;
+
+  function onMouseMove(e) {
+    mouseX = (e.clientX - window.innerWidth / 2);
+    mouseY = (e.clientY - window.innerHeight / 2);
+    targetRotY = (e.clientX / window.innerWidth - 0.5) * 0.4;
+    targetRotX = (e.clientY / window.innerHeight - 0.5) * 0.3;
+  }
+  window.addEventListener('mousemove', onMouseMove);
+
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  const _onResize = () => resize();
+  window.addEventListener('resize', _onResize);
+
+  function getColor() {
+    const s = getComputedStyle(document.documentElement);
+    return s.getPropertyValue('--bg-effect-color').trim() || s.getPropertyValue('--fg').trim() || '#9cdef2';
+  }
+
+  function darkRgba(hex, a) {
+    const { r, g, b } = hexToRgb(hex) || { r: 156, g: 222, b: 242 };
+    // Vibrant metallic dark cyber tone tuning (sharp cyan/blue/slate)
+    const dr = Math.round(r * 0.65 + 40);
+    const dg = Math.round(g * 0.75 + 70);
+    const db = Math.round(b * 0.85 + 95);
+    return `rgba(${dr},${dg},${db},${a})`;
+  }
+
+  // 3D Hollow Robotic Cyber-Snake Vertebrae Joints (45 segments)
+  const NUM_SEGMENTS = 45;
+  const segments = [];
+  for (let i = 0; i < NUM_SEGMENTS; i++) {
+    segments.push({
+      x: (Math.random() - 0.5) * 350,
+      y: (Math.random() - 0.5) * 250,
+      z: (Math.random() - 0.5) * 180,
+      r: i === 0 ? 40 : Math.max(10, 36 - i * 0.58),
+    });
+  }
+
+  // Energy pulse rays along snake spine
+  const spinePulses = [];
+  const MAX_PULSES = 16;
+
+  function project(x, y, z, rotX, rotY) {
+    const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+    let x1 = x * cosY - z * sinY;
+    let z1 = x * sinY + z * cosY;
+
+    const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+    let y1 = y * cosX - z1 * sinX;
+    let z2 = y * sinX + z1 * cosX;
+
+    const fov = 480;
+    const scale = fov / (fov + z2 + 420);
+    return {
+      x: W / 2 + x1 * scale,
+      y: H / 2 + y1 * scale,
+      scale,
+      z: z2
+    };
+  }
+
+  let time = 0;
+
+  function draw() {
+    requestAnimationFrame(draw);
+    time += 0.018;
+
+    ctx.clearRect(0, 0, W, H);
+    const color = getColor();
+
+    currRotX += (targetRotX - currRotX) * 0.04;
+    currRotY += (targetRotY - currRotY) * 0.04;
+
+    const baseRotX = currRotX + Math.sin(time * 0.4) * 0.06;
+    const baseRotY = currRotY + Math.cos(time * 0.3) * 0.06;
+
+    // 1. Calculate 3D Hollow Snake Head S-Curve Motion
+    const head = segments[0];
+    const headTargetX = Math.sin(time * 0.7) * (W * 0.38) + mouseX * 0.25;
+    const headTargetY = Math.sin(time * 1.1) * (H * 0.28) + mouseY * 0.25;
+    const headTargetZ = Math.cos(time * 0.8) * 160;
+
+    head.x += (headTargetX - head.x) * 0.08;
+    head.y += (headTargetY - head.y) * 0.08;
+    head.z += (headTargetZ - head.z) * 0.08;
+
+    // 2. Damped Segmented Spine Kinetics (Robotic Hollow Body Follow)
+    const segDistance = 25;
+    for (let i = 1; i < NUM_SEGMENTS; i++) {
+      const prev = segments[i - 1];
+      const curr = segments[i];
+
+      const dx = curr.x - prev.x;
+      const dy = curr.y - prev.y;
+      const dz = curr.z - prev.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+
+      const waveOffset = i * 0.25;
+      const waveX = Math.sin(time * 2.5 - waveOffset) * 13;
+      const waveY = Math.cos(time * 2.5 - waveOffset) * 13;
+
+      const targetX = prev.x + (dx / dist) * segDistance + waveX;
+      const targetY = prev.y + (dy / dist) * segDistance + waveY;
+      const targetZ = prev.z + (dz / dist) * segDistance;
+
+      curr.x += (targetX - curr.x) * 0.22;
+      curr.y += (targetY - curr.y) * 0.22;
+      curr.z += (targetZ - curr.z) * 0.22;
+    }
+
+    // Project 3D segment positions to screen coordinates
+    const projectedSegs = segments.map(s => project(s.x, s.y, s.z, baseRotX, baseRotY));
+
+    // 3. Draw Cybernetic Dual Hollow Backbone Spine Lines
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = darkRgba(color, 0.7);
+    ctx.beginPath();
+    for (let i = 0; i < projectedSegs.length - 1; i++) {
+      const p1 = projectedSegs[i];
+      const p2 = projectedSegs[i + 1];
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+    }
+    ctx.stroke();
+
+    // 4. Draw Active Energy Pulses Traveling Down Hollow Center Spine
+    if (spinePulses.length < MAX_PULSES && Math.random() < 0.05) {
+      spinePulses.push({ segIdx: 0, progress: 0, speed: 0.04 + Math.random() * 0.03 });
+    }
+    for (let i = spinePulses.length - 1; i >= 0; i--) {
+      const p = spinePulses[i];
+      p.progress += p.speed;
+      const currentIdx = Math.floor(p.progress * (NUM_SEGMENTS - 1));
+      if (currentIdx >= NUM_SEGMENTS - 1) { spinePulses.splice(i, 1); continue; }
+
+      const p1 = projectedSegs[currentIdx];
+      const p2 = projectedSegs[currentIdx + 1];
+      const subRatio = (p.progress * (NUM_SEGMENTS - 1)) - currentIdx;
+
+      const px = p1.x + (p2.x - p1.x) * subRatio;
+      const py = p1.y + (p2.y - p1.y) * subRatio;
+
+      ctx.fillStyle = darkRgba(color, 0.95);
+      ctx.beginPath();
+      ctx.arc(px, py, 4.5 * p1.scale, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 5. Render Hollow Vertebrae Joints with Realistic Viper Head
+    projectedSegs.forEach((p, i) => {
+      const r = segments[i].r * p.scale;
+      const alpha = Math.min(0.9, Math.max(0.38, 0.62 * p.scale));
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+
+      if (i === 0) {
+        // --- ANATOMICALLY REALISTIC HOLLOW VIPER HEAD ---
+        const strokeColor = darkRgba(color, alpha * 1.5);
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2.8;
+
+        // A. Realistic Triangular Viper Skull Contour (Nose, Brows, Broad Jaw Corners)
+        ctx.beginPath();
+        // Nose Tip (Snout)
+        ctx.moveTo(0, -r * 1.55);
+        // Right Nostril & Brow Crest
+        ctx.quadraticCurveTo(r * 0.45, -r * 1.3, r * 0.75, -r * 0.75);
+        // Right Broad Occipital Jaw Corner
+        ctx.quadraticCurveTo(r * 1.25, -r * 0.1, r * 0.95, r * 1.05);
+        // Right Occipital Base to Spine Center
+        ctx.lineTo(r * 0.35, r * 1.3);
+        ctx.lineTo(-r * 0.35, r * 1.3);
+        // Left Occipital Base
+        ctx.lineTo(-r * 0.95, r * 1.05);
+        // Left Broad Occipital Jaw Corner & Brow Crest
+        ctx.quadraticCurveTo(-r * 1.25, -r * 0.1, -r * 0.75, -r * 0.75);
+        ctx.quadraticCurveTo(-r * 0.45, -r * 1.3, 0, -r * 1.55);
+        ctx.closePath();
+
+        // Subtle transparent hollow fill (low alpha wireframe look)
+        ctx.fillStyle = darkRgba(color, alpha * 0.15);
+        ctx.fill();
+        ctx.stroke();
+
+        // B. Supraocular Brow Ridges & Cranial Armor Plate Lines
+        ctx.strokeStyle = darkRgba(color, alpha * 0.9);
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        // Center Parietal Ridge Line
+        ctx.moveTo(0, -r * 1.4);
+        ctx.lineTo(0, r * 0.9);
+
+        // Lateral Cranial Facets
+        ctx.moveTo(-r * 0.65, -r * 0.7);
+        ctx.lineTo(0, -r * 0.2);
+        ctx.lineTo(r * 0.65, -r * 0.7);
+
+        ctx.moveTo(-r * 0.85, r * 0.3);
+        ctx.lineTo(0, r * 0.5);
+        ctx.lineTo(r * 0.85, r * 0.3);
+        ctx.stroke();
+
+        // C. Realistic Viper Fangs (Twin Curved Venom Fangs near upper jaw)
+        ctx.strokeStyle = 'rgba(240, 245, 255, 0.92)';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        // Left Fang
+        ctx.moveTo(-r * 0.28, -r * 0.85);
+        ctx.quadraticCurveTo(-r * 0.38, -r * 0.45, -r * 0.22, -r * 0.3);
+        // Right Fang
+        ctx.moveTo(r * 0.28, -r * 0.85);
+        ctx.quadraticCurveTo(r * 0.38, -r * 0.45, r * 0.22, -r * 0.3);
+        ctx.stroke();
+
+        // D. Snout Heat Pit Nostrils
+        ctx.fillStyle = darkRgba(color, alpha * 1.4);
+        ctx.beginPath();
+        ctx.arc(-r * 0.22, -r * 1.25, 2.0 * p.scale, 0, Math.PI * 2);
+        ctx.arc(r * 0.22, -r * 1.25, 2.0 * p.scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        // E. Realistic Slit Predator Eyes (Almond Socket + Vertical Slit Pupil)
+        const eyeX = r * 0.52;
+        const eyeY = -r * 0.55;
+        const eyeW = 7.5 * p.scale;
+        const eyeH = 4.2 * p.scale;
+
+        [-1, 1].forEach(side => {
+          ctx.save();
+          ctx.translate(side * eyeX, eyeY);
+          ctx.rotate(side * 0.35); // Slanted aggressive angle
+
+          // Eye Socket Oval
+          ctx.strokeStyle = 'rgba(255, 90, 90, 0.95)';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, eyeW, eyeH, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.fillStyle = 'rgba(220, 40, 40, 0.35)';
+          ctx.fill();
+
+          // Vertical Slit Predator Pupil
+          ctx.fillStyle = 'rgba(255, 220, 220, 0.98)';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, eyeW * 0.22, eyeH * 0.88, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        });
+      } else {
+        // --- HOLLOW WIREFRAME BODY VERTEBRAE ---
+        const rot = time * 0.8 + i * 0.15;
+        ctx.strokeStyle = darkRgba(color, alpha);
+        ctx.lineWidth = 2.4;
+
+        if (i % 2 === 0) {
+          // Hollow Hexagonal Cyber Cage Ring
+          ctx.beginPath();
+          for (let h = 0; h < 6; h++) {
+            const angle = rot + (h * Math.PI / 3);
+            const hx = Math.cos(angle) * r;
+            const hy = Math.sin(angle) * r;
+            if (h === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        } else {
+          // Hollow Octahedron Vertebrae Rib Ring
+          ctx.beginPath();
+          ctx.arc(0, 0, r, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Inner Cross Rib Spokes
+          ctx.beginPath();
+          ctx.moveTo(-r, 0); ctx.lineTo(r, 0);
+          ctx.moveTo(0, -r); ctx.lineTo(0, r);
+          ctx.stroke();
+        }
+
+        // Center Vertebrae Spine Core Node
+        ctx.fillStyle = darkRgba(color, alpha * 0.95);
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(2.2, r * 0.26), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    });
+
+    ctx.globalAlpha = 1;
+  }
+  draw();
+}
+
 const themeModule = { initThemeUI, togglePopup, closePopup, makeDraggable,
                        THEMES, applyColors, applyFontDensity, applyBgPattern,
                        applyBgEffectColor, applyBgEffectIntensity, applyBgEffectSize,
@@ -2109,7 +2429,8 @@ async function _initWithSync() {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => _initWithSync());
+  document.addEventListener('DOMContentLoaded', () => { _initWithSync(); _initRoboticSnake3D(); });
 } else {
   _initWithSync();
+  _initRoboticSnake3D();
 }

@@ -2455,6 +2455,8 @@ body.bg-pattern-sparkles {
 
     /* Unified chat input bar */
 	    .chat-input-bar {
+	      position: relative;
+	      z-index: 1;
 	      background: var(--input-bg, var(--panel));
 	      border: 1px solid var(--input-border, var(--border));
 	      border-radius: 16px;
@@ -2468,6 +2470,10 @@ body.bg-pattern-sparkles {
 	      width: 100%;
 		      transition: border-color 0.16s ease, background 0.16s ease;
 		    }
+	    .chat-input-bar > * {
+	      position: relative;
+	      z-index: 2;
+	    }
 		    body.plan-mode-active .chat-input-bar {
 		      border-style: dashed;
 		      border-color: color-mix(in srgb, var(--accent, var(--red)) 55%, transparent);
